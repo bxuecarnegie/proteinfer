@@ -82,20 +82,11 @@ class _InferrerFixture(object):
 class InGraphInferrerTest(tf.test.TestCase, parameterized.TestCase):
 
   def testCanInfer(self):
-
-    graph = tf.Graph()
-    with graph.as_default():
-      sequences = tf.placeholder(shape=[None], dtype=tf.string)
-      output_tensor = inference.in_graph_inferrer(
-          sequences, test_util.savedmodel_path(),
-          tf.saved_model.signature_constants.DEFAULT_SERVING_SIGNATURE_DEF_KEY)
-
+    inferrer = inference.Inferrer(test_util.savedmodel_path())
+  
     input_seqs = [''.join(utils.FULL_RESIDUE_VOCAB), 'ACD']
-    with self.session(graph=graph) as sess:
-      sess.run(tf.global_variables_initializer())
-      sess.run(tf.tables_initializer())
-      result = sess.run(output_tensor, feed_dict={sequences: input_seqs})
-
+    result = inferrer.get_activations(input_seqs)
+  
     self.assertLen(result, 2)
 
 

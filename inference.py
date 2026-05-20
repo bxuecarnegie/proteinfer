@@ -34,12 +34,65 @@ import utils
 import six
 import tensorflow.compat.v1 as tf
 tf.disable_v2_behavior()
-import tensorflow_hub as hub
+# import tensorflow_hub as hub
 import tqdm
 import scipy.sparse
 
 
-def call_module(module, one_hots, row_lengths, signature):
+def get_tensor_from_signature(graph, tensor_info, import_scope):
+  """Gets a tensor from SignatureDef TensorInfo, accounting for import_scope."""
+  try:
+    return graph.get_tensor_by_name(tensor_info.name)
+  except KeyError:
+    return graph.get_tensor_by_name('{}/{}'.format(import_scope,
+                                                   tensor_info.name))
+
+
+def load_saved_model_signature(sess, savedmodel_dir_path, signature, tags,
+                               name_scope):
+  """Load a TF1 SavedModel into `sess` and return its input/output tensors."""
+  meta_graph_def = tf.saved_model.loader.load(
+      sess,
+      tags,
+      savedmodel_dir_path,
+      import_scope=name_scope)
+
+  if signature not in meta_graph_def.signature_def:
+    raise ValueError('signature not in ' +
+                     six.ensure_str(str(list(meta_graph_def.signature_def))) +
+                     '. Was ' + six.ensure_str(signature) + '.')
+
+  sig = meta_graph_def.signature_def[signature]
+
+  expected_inputs = [
+      'sequence',
+      'sequence_length',
+  ]
+  if set(sig.inputs.keys()) != set(expected_inputs):
+    raise ValueError(
+        'The signature_def does not have the expected inputs. Please '
+        'reconfigure your saved model to only export signatures '
+        'with sequence and length inputs. (Inputs were %s, expected %s)' %
+        (str(sig.inputs), str(expected_inputs)))
+
+  if len(sig.outputs) > 1:
+    raise ValueError('The signature_def given has more than one output. Please '
+                     'reconfigure your saved model to only export signatures '
+                     'with one output. (Outputs were %s)' % str(sig.outputs))
+
+  graph = sess.graph
+
+  return {
+      'sequence': get_tensor_from_signature(
+          graph, sig.inputs['sequence'], name_scope),
+      'sequence_length': get_tensor_from_signature(
+          graph, sig.inputs['sequence_length'], name_scope),
+      'output': get_tensor_from_signature(
+          graph, list(sig.outputs.values())[0], name_scope),
+  }
+  
+  
+def _call_module(module, one_hots, row_lengths, signature):
   """Call a tf_hub.Module using the standard blundell signature.
 
   This expects that `module` has a signature named `signature` which conforms to
@@ -122,10 +175,11 @@ def in_graph_inferrer(sequences,
   residues = tf.strings.unicode_split(sequences, 'UTF-8')
   # Convert to one-hots and pad.
   one_hots, row_lengths = utils.in_graph_residues_to_onehot(residues)
-  module_spec = hub.saved_model_module.create_module_spec_from_saved_model(
-      savedmodel_dir_path)
-  module = hub.Module(module_spec, trainable=False, tags=tags, name=name_scope)
-  return call_module(module, one_hots, row_lengths, signature)
+  # module_spec = hub.saved_model_module.create_module_spec_from_saved_model(
+  #     savedmodel_dir_path)
+  # module = hub.Module(module_spec, trainable=False, tags=tags, name=name_scope)
+  # return call_module(module, one_hots, row_lengths, signature)
+  return one_hots, row_lengths, tags
 
 
 @functools.lru_cache(maxsize=None)
@@ -197,15 +251,42 @@ class Inferrer(object):
     with self._graph.as_default():
       self._sequences = tf.placeholder(
           shape=[None], dtype=tf.string, name='sequences')
-      self._fetch = in_graph_inferrer(
+      # self._fetch = in_graph_inferrer(
+      #     self._sequences,
+      #     savedmodel_dir_path,
+      #     activation_type,
+      #     name_scope=self._model_name_scope)
+      # self._sess = tf.Session(
+      #     config=session_config if session_config else tf.ConfigProto())
+      # self._sess.run([
+      #     tf.initializers.global_variables(),
+      #     tf.initializers.local_variables(),
+      #     tf.initializers.tables_initializer(),
+      # ])
+      self._one_hots, self._row_lengths, tags = in_graph_inferrer(
           self._sequences,
           savedmodel_dir_path,
           activation_type,
           name_scope=self._model_name_scope)
+
       self._sess = tf.Session(
           config=session_config if session_config else tf.ConfigProto())
+
+      model_tensors = load_saved_model_signature(
+          self._sess,
+          savedmodel_dir_path,
+          activation_type,
+          tags,
+          self._model_name_scope)
+
+      self._model_sequence = model_tensors['sequence']
+      self._model_sequence_length = model_tensors['sequence_length']
+      self._fetch = model_tensors['output']
+
+      # Do not run global_variables_initializer() here.
+      # tf.saved_model.loader.load(...) restores model weights.
+      # We only initialize local/table state used by preprocessing.
       self._sess.run([
-          tf.initializers.global_variables(),
           tf.initializers.local_variables(),
           tf.initializers.tables_initializer(),
       ])
@@ -257,8 +338,19 @@ class Inferrer(object):
       fetch = self._get_tensor_by_name(custom_tensor_to_retrieve)
     else:
       fetch = self._fetch
+    # with self._graph.as_default():
+    #   return self._sess.run(fetch, {self._sequences: seqs})
     with self._graph.as_default():
-      return self._sess.run(fetch, {self._sequences: seqs})
+      one_hots, row_lengths = self._sess.run(
+          [self._one_hots, self._row_lengths],
+          {self._sequences: seqs})
+
+      return self._sess.run(
+          fetch,
+          {
+              self._model_sequence: one_hots,
+              self._model_sequence_length: row_lengths,
+          })
 
   @functools.lru_cache(maxsize=None)
   def _get_activations_for_batch_memoized(self,
