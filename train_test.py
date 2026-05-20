@@ -28,6 +28,7 @@ import hparams_sets
 import protein_dataset
 import train
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 FLAGS = flags.FLAGS
 

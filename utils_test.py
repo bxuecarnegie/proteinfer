@@ -27,6 +27,7 @@ from absl.testing import parameterized
 import numpy as np
 import utils
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 
 class TestTensorUtils(parameterized.TestCase):

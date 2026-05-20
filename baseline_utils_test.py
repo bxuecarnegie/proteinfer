@@ -30,6 +30,7 @@ import pandas as pd
 import baseline_utils
 import test_util
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 
 def _write_to_file(contents):

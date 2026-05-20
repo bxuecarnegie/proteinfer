@@ -22,8 +22,9 @@ import os
 
 import utils
 import tensorflow.compat.v1 as tf
-from tensorflow.contrib import data as contrib_data
-from tensorflow.contrib import lookup as contrib_lookup
+tf.disable_v2_behavior()
+contrib_data = tf.data.experimental
+contrib_lookup = tf.lookup
 
 # TODO(theosanderson): finalise this root path.
 DATA_ROOT_DIR = 'data/'
@@ -171,11 +172,25 @@ def non_batched_dataset(train_dev_or_test,
   dataset = dataset.map(_add_sequence_length)
   dataset = dataset.filter(_is_sequence_short_enough_for_training)
 
-  amino_acid_table = contrib_lookup.index_table_from_tensor(
-      utils.AMINO_ACID_VOCABULARY,
-      default_value=len(utils.AMINO_ACID_VOCABULARY))
-  protein_class_table = contrib_lookup.index_table_from_tensor(
-      mapping=label_vocab)
+  # _amino_acid_table = contrib_lookup.index_table_from_tensor(
+  #     utils.AMINO_ACID_VOCABULARY,
+  #     default_value=len(utils.AMINO_ACID_VOCABULARY))
+  # _protein_class_table = contrib_lookup.index_table_from_tensor(
+  #     mapping=label_vocab)
+  # TensorFlow 2.x compat
+  amino_acid_vocab = tf.constant(utils.AMINO_ACID_VOCABULARY)
+  amino_acid_table = tf.lookup.StaticHashTable(
+      tf.lookup.KeyValueTensorInitializer(
+          keys=amino_acid_vocab,
+          values=tf.range(tf.size(amino_acid_vocab), dtype=tf.int64)),
+      default_value=tf.constant(len(utils.AMINO_ACID_VOCABULARY), dtype=tf.int64))
+  
+  label_vocab = tf.constant(label_vocab)
+  protein_class_table = tf.lookup.StaticHashTable(
+      tf.lookup.KeyValueTensorInitializer(
+          keys=label_vocab,
+          values=tf.range(tf.size(label_vocab), dtype=tf.int64)),
+      default_value=tf.constant(-1, dtype=tf.int64))
 
   dataset = dataset.map(lambda ex: _map_sequence_to_ints(ex, amino_acid_table))
   dataset = dataset.map(lambda ex: _map_labels_to_ints(ex, protein_class_table))

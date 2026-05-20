@@ -22,8 +22,9 @@ import math
 
 import protein_dataset
 import tensorflow.compat.v1 as tf
-from tensorflow.contrib import layers as contrib_layers
-from tensorflow.contrib.layers.python.layers import optimizers as optimizers_lib
+tf.disable_v2_behavior()
+import tf_slim as contrib_layers
+from tf_slim.layers import optimizers as optimizers_lib
 
 
 

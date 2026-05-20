@@ -29,7 +29,8 @@ import urllib
 
 import numpy as np
 import tensorflow.compat.v1 as tf  # tf
-from tensorflow.contrib import lookup as contrib_lookup
+tf.disable_v2_behavior()
+contrib_lookup = tf.lookup
 import tqdm
 
 
@@ -194,7 +195,7 @@ def residues_to_one_hot(amino_acid_residues):
   return residue_encodings[int_sequence]
 
 
-def fasta_indexer():
+def _fasta_indexer():
   """Get a function for converting tokenized protein strings to indices."""
   mapping = tf.constant(FULL_RESIDUE_VOCAB)
   table = contrib_lookup.index_table_from_tensor(mapping)
@@ -204,6 +205,19 @@ def fasta_indexer():
 
   return mapper
 
+def fasta_indexer():
+  """Get a function for converting tokenized protein strings to indices. TensorFlow 2.x compat"""
+  mapping = tf.constant(FULL_RESIDUE_VOCAB)
+  table = tf.lookup.StaticHashTable(
+      tf.lookup.KeyValueTensorInitializer(
+          keys=mapping,
+          values=tf.range(tf.size(mapping), dtype=tf.int64)),
+      default_value=tf.constant(-1, dtype=tf.int64))
+
+  def mapper(residues):
+    return tf.ragged.map_flat_values(table.lookup, residues)
+
+  return mapper
 
 def fasta_encoder():
   """Get a function for converting indexed amino acids to one-hot encodings."""

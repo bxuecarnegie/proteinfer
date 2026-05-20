@@ -20,7 +20,9 @@ These are defined as functions to allow for inheritance.
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
-from tensorflow.contrib import training as contrib_training
+
+import tensorflow.compat.v1 as tf
+contrib_training = tf
 
 
 def _starting_hparams():

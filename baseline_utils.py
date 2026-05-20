@@ -30,6 +30,7 @@ import pandas as pd
 import six
 from six.moves import zip
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import tqdm
 
 _BLAST_OUTPUT_COLUMNS = [

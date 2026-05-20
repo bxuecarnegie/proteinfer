@@ -24,6 +24,7 @@ from absl import app
 from absl import flags
 import utils
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import tqdm
 
 _logger = logging.getLogger('proteinfer')

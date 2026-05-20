@@ -32,6 +32,7 @@ from typing import (Collection, Dict, FrozenSet, Iterable, List, Optional, Set,
 import pandas as pd
 import utils
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import tqdm
 
 

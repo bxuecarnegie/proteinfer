@@ -38,6 +38,7 @@ import inference
 import utils
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'  # TF c++ logging set to ERROR
 import tensorflow.compat.v1 as tf  # pylint: disable=g-import-not-at-top
+tf.disable_v2_behavior()
 import tqdm
 
 

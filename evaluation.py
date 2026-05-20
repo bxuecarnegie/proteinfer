@@ -207,8 +207,8 @@ def true_false_positive_negative_df(df):
 
   working_df = pd.DataFrame(dict_prep_for_df)
 
-  working_df.predicted = working_df.predicted.astype(np.bool)
-  working_df.true = working_df.true.astype(np.bool)
+  working_df.predicted = working_df.predicted.astype(bool)
+  working_df.true = working_df.true.astype(bool)
 
   working_df['true_positive'] = working_df.predicted & working_df.true
   working_df['false_positive'] = working_df.predicted & ~working_df.true

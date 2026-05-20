@@ -27,6 +27,7 @@ import pandas as pd
 import colab_evaluation
 import inference
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 FLAGS = flags.FLAGS
 

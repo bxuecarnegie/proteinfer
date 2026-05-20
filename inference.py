@@ -33,6 +33,7 @@ import pandas as pd
 import utils
 import six
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 import tensorflow_hub as hub
 import tqdm
 import scipy.sparse
@@ -280,7 +281,7 @@ class Inferrer(object):
       np.array of scipy sparse coo matrices of shape [num_of_seqs_in_batch, ...]
       where ... is the shape of the fetch tensor.
     """
-    np_seqs = np.array(list_of_seqs, dtype=np.object)
+    np_seqs = np.array(list_of_seqs, dtype=object)
     if np_seqs.size == 0:
       return np.array([], dtype=float)
 

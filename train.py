@@ -37,6 +37,7 @@ import protein_dataset
 import protein_model
 import utils
 import tensorflow.compat.v1 as tf
+tf.disable_v2_behavior()
 
 flags.DEFINE_string(
     'data_base_path', None,
